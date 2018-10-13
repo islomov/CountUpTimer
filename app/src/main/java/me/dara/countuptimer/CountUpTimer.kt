@@ -1,44 +1,49 @@
 package me.dara.countuptimer
 
 import android.os.*
+import me.dara.countuptimer.CountUpTimer.Companion.MSG
+import java.lang.Exception
 import java.lang.ref.WeakReference
-
 
 /**
  * @author sardor
  */
-abstract class CountUpTimer(threadType: Int) {
+abstract class CountUpTimer{
   companion object {
-    const val MAIN_THREAD = 0
-    const val WORKER_THREAD = 1
     const val MSG = 2
   }
-
-  val mHandler: CustomHandler
-  val mHandlerThread: CustomHandlerThread
-  val threadType: Int = threadType
-  var baseTime: Long = SystemClock.currentThreadTimeMillis()
-
-  init {
-    mHandlerThread = CustomHandlerThread("WorkerThread",this)
-    mHandler = CustomHandler(Looper.getMainLooper(),this)
+  var mHandler: CustomHandler? = null
+  val baseTime: Long by lazy {
+    System.currentTimeMillis()
   }
 
+  var looper : Looper? = null
+  var isStarted = false
+
   fun start() {
-    baseTime = SystemClock.elapsedRealtime()
-    if (threadType == MAIN_THREAD) {
-      mHandler.sendMessage(mHandler.obtainMessage(MSG))
-    } else {
-      mHandlerThread.sendMessage(mHandlerThread.handler.obtainMessage(MSG))
+    if (isStarted){
+      throw Exception("Timer is already started you can't start it." +
+          "In order to start you have to stop timer first")
     }
+    looper = Looper.myLooper()
+    isStarted = true
+    if (looper == null){
+      Looper.prepare()
+      looper = Looper.myLooper()
+    }
+    baseTime
+    mHandler = CustomHandler(looper!!,this)
+    mHandler?.sendMessage(mHandler?.obtainMessage(MSG))
+    if (looper == null)
+      Looper.loop()
   }
 
   fun stop() {
-    if (threadType == MAIN_THREAD) {
-      mHandler.removeMessages(MSG)
-    } else {
-      mHandlerThread.handler.removeMessages(MSG)
+    if (!isStarted){
+      throw Exception("Timer is not started.You have to start it first")
     }
+    mHandler?.removeMessages(MSG)
+    looper?.quit()
   }
 
   abstract fun onTick(elapsedTime: Long)
@@ -47,25 +52,14 @@ abstract class CountUpTimer(threadType: Int) {
 
 class CustomHandler(looper: Looper,
                     countUpTimer: CountUpTimer) : Handler(looper) {
-  private val mCountUpTimer: WeakReference<CountUpTimer> = WeakReference(countUpTimer)
 
+  private val mCountUpTimer = WeakReference(countUpTimer)
   override fun handleMessage(msg: Message?) {
-    val baseTime  = mCountUpTimer.get()?.baseTime
+    val baseTime = mCountUpTimer.get()?.baseTime
     baseTime?.let {
-      val elapsedTime = SystemClock.currentThreadTimeMillis() - it
+      val elapsedTime = System.currentTimeMillis() - it
       mCountUpTimer.get()?.onTick(elapsedTime)
       sendMessageDelayed(obtainMessage(), 1000)
     }
-  }
-}
-
-open class CustomHandlerThread(name: String,countUpTimer: CountUpTimer) : HandlerThread(name) {
-  val handler: CustomHandler
-  override fun onLooperPrepared() {
-    super.onLooperPrepared()
-    handler = CustomHandler(looper,countUpTimer)
-  }
-  fun sendMessage(message: Message) {
-    handler.sendMessage(message)
   }
 }
