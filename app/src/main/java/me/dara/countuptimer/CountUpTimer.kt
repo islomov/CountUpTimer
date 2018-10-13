@@ -1,7 +1,6 @@
 package me.dara.countuptimer
 
 import android.os.*
-import me.dara.countuptimer.CountUpTimer.Companion.MSG
 import java.lang.Exception
 import java.lang.ref.WeakReference
 
@@ -43,7 +42,8 @@ abstract class CountUpTimer{
       throw Exception("Timer is not started.You have to start it first")
     }
     mHandler?.removeMessages(MSG)
-    looper?.quit()
+    if (looper != Looper.getMainLooper())
+      looper?.quit()
   }
 
   abstract fun onTick(elapsedTime: Long)
