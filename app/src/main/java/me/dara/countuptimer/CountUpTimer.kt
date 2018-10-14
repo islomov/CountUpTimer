@@ -7,41 +7,46 @@ import java.lang.ref.WeakReference
 /**
  * @author sardor
  */
-abstract class CountUpTimer{
+abstract class CountUpTimer(val millisInterval:Long) {
   companion object {
     const val MSG = 2
   }
-  var mHandler: CustomHandler? = null
+
+  var mHandler: WeakReference<Handler>? = null
   val baseTime: Long by lazy {
-    System.currentTimeMillis()
+    SystemClock.elapsedRealtime()
   }
 
-  var looper : Looper? = null
+  var looper: Looper? = null
   var isStarted = false
+  var isStoped = false
 
   fun start() {
-    if (isStarted){
+    if (isStarted) {
       throw Exception("Timer is already started you can't start it." +
           "In order to start you have to stop timer first")
     }
     looper = Looper.myLooper()
     isStarted = true
-    if (looper == null){
+    isStoped = false
+    if (looper == null) {
       Looper.prepare()
       looper = Looper.myLooper()
     }
     baseTime
-    mHandler = CustomHandler(looper!!,this)
-    mHandler?.sendMessage(mHandler?.obtainMessage(MSG))
+    mHandler = WeakReference(CustomHandler(looper!!, this))
+    mHandler?.get()?.sendMessage(mHandler?.get()?.obtainMessage(MSG))
     if (looper == null)
       Looper.loop()
   }
 
   fun stop() {
-    if (!isStarted){
+    if (!isStarted) {
       throw Exception("Timer is not started.You have to start it first")
     }
-    mHandler?.removeMessages(MSG)
+    isStarted = false
+    isStoped = true
+    mHandler?.get()?.removeMessages(MSG)
     if (looper != Looper.getMainLooper())
       looper?.quit()
   }
@@ -51,15 +56,17 @@ abstract class CountUpTimer{
 }
 
 class CustomHandler(looper: Looper,
-                    countUpTimer: CountUpTimer) : Handler(looper) {
+                    private val countUpTimer: CountUpTimer) : Handler(looper) {
 
-  private val mCountUpTimer = WeakReference(countUpTimer)
   override fun handleMessage(msg: Message?) {
-    val baseTime = mCountUpTimer.get()?.baseTime
-    baseTime?.let {
-      val elapsedTime = System.currentTimeMillis() - it
-      mCountUpTimer.get()?.onTick(elapsedTime)
-      sendMessageDelayed(obtainMessage(), 1000)
-    }
+    if (countUpTimer.isStoped)
+      return
+    val interval = countUpTimer.millisInterval
+    val lastTickStart = SystemClock.elapsedRealtime()
+    val elapsedTime = SystemClock.elapsedRealtime() - countUpTimer.baseTime
+    countUpTimer.onTick(elapsedTime)
+    val lastTickDuration = SystemClock.elapsedRealtime() - lastTickStart
+    val delay = interval - lastTickDuration
+    sendMessageDelayed(obtainMessage(), delay)
   }
 }
