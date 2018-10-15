@@ -12,14 +12,14 @@ abstract class CountUpTimer(val millisInterval:Long) {
     const val MSG = 2
   }
 
-  var mHandler: WeakReference<Handler>? = null
-  val baseTime: Long by lazy {
+  private var mHandler: WeakReference<Handler>? = null
+  private val baseTime: Long by lazy {
     SystemClock.elapsedRealtime()
   }
 
-  var looper: Looper? = null
-  var isStarted = false
-  var isStoped = false
+  private var looper: Looper? = null
+  private var isStarted = false
+  private var isStoped = false
 
   fun start() {
     if (isStarted) {
