@@ -6,7 +6,7 @@ Simple CountUpTimer in Kotlin
 
 ## Installation using Gradle
 
-`implementation 'me.dara.avatardrawable:avatardrawable:1.0.0'`
+`implementation 'me.dara.avatardrawable:avatardrawable:1.0.1'`
 
 ## Usage
 
